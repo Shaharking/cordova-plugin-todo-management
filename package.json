@@ -1,0 +1,25 @@
+{
+  "name": "cordova-plugin-todo-management",
+  "version": "0.1.0",
+  "description": "",
+  "cordova": {
+    "id": "cordova-plugin-todo-management",
+    "platforms": [
+      "android"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shaharking/cordova-plugin-todo-management.git"
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "Shahar",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Shaharking/cordova-plugin-todo-management/issues"
+  },
+  "homepage": "https://github.com/Shaharking/cordova-plugin-todo-management#readme"
+}

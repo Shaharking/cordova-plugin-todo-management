@@ -10,8 +10,21 @@
                 <param name="android-package" value="org.apache.cordova.todo.TodoManagement" />
             </feature>
         </config-file>
+
         <config-file parent="/*" target="AndroidManifest.xml">
+        
         </config-file>
-        <source-file src="src/android/TodoManagement.java" target-dir="src/cordova-plugin-todo-management/TodoManagement" />
+
+        <source-file src="src/android/TodoManagement.java" target-dir="src/org/apache/cordova/todo" />
+        <source-file src="src/android/DatabaseHelper.java" target-dir="src/org/apache/cordova/todo" />
+        <source-file src="src/android/Todo.java" target-dir="src/org/apache/cordova/todo/models" />
+
+        <lib-file src="src/android/libs/gson-2.8.2.jar" />
+    </platform>
+        <!-- browser -->
+    <platform name="browser">
+        <js-module src="src/browser/TodoManagementProxy.js" name="TodoManagementProxy">
+            <runs />
+        </js-module>
     </platform>
 </plugin>

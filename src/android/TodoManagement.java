@@ -1,4 +1,4 @@
-package org.apache.cordova.todo.TodoManagement
+package org.apache.cordova.todo;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
@@ -12,68 +12,87 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.content.ContentValues;
 
+import com.google.gson.Gson;
+
+import org.apache.cordova.todo.models.Todo;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.List;
 
 /**
  * This class echoes a string called from JavaScript.
  */
 public class TodoManagement extends CordovaPlugin {
 
-    public SQLiteDatabase TodoDb;
+    private DatabaseHelper databaseHelper = null;
+
+    private Gson gson = new Gson();
 
     public TodoManagement()
     {
-        TodoDb = SQLiteDatabase.openOrCreateDatabase("todo.db", null);
-        TodoDb.execSQL("CREATE TABLE IF NOT EXISTS Todos(id INT PRIMARY KEY NOT NULL, label TEXT, checked INT NOT NULL);");
+
     }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+
+        if (databaseHelper == null) {
+            databaseHelper = DatabaseHelper.getInstance(this.cordova.getContext());
+        }
+
         if (action.equals("get")) {
-            JSONArray r = this.getTodoList();
-            callbackContext.success(r);
+            this.cordova.getThreadPool().execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        List<Todo> todoList = databaseHelper.getAllTodos();
+                        String jsonString = gson.toJson(todoList);
+                        JSONArray r = new JSONArray(jsonString);
+                        callbackContext.success(r);
+                    }
+                    catch (Exception e) {
+                        callbackContext.error(e.getMessage());
+                    }
+                }
+            });
             return true;
         }
-        if (action.equals("post"))
+        if (action.equals("getById"))
         {
             JSONObject todo = args.getJSONObject(0);
-            this.cordova.getThreadPool().execute(new Runnable(){
+            this.cordova.getThreadPool().execute(new Runnable() {
+                @Override
                 public void run() {
-                    try {
-                        Integer id = todo.getInt("id");
-                        String label = todo.getString("label");
-                        Integer checked = todo.getInt("checked");
-                        insertTodo(id, label, checked);
-                        callbackContext.success(true);
-                    } catch (JSONException e) {
-                        callbackContext.error("Error at post");
-                        e.printStackTrace();
+                    try{
+                        long id = todo.getLong("id");
+                        Todo todoItem = databaseHelper.getById(id);
+                        String jsonString = todoItem.toJson();
+                        JSONObject r = new JSONObject(jsonString);
+                        callbackContext.success(r);
+                    } catch (Exception e) {
+                        callbackContext.error(e.getMessage());
                     }
-
                 }
             });
-
+            return true;
         }
-        if (action.equals("put"))
+        if (action.equals("post") || action.equals("put"))
         {
             JSONObject todo = args.getJSONObject(0);
             this.cordova.getThreadPool().execute(new Runnable(){
                 public void run() {
                     try {
-                        Integer id = todo.getInt("id");
-                        String label = todo.getString("label");
-                        Integer checked = todo.getInt("checked");
-                        updateTodo(id, label, checked);
-                        callbackContext.success(true);
-                    } catch (JSONException e) {
-                        callbackContext.error("Error at put");
-                        e.printStackTrace();
+                        Todo todoItem = Todo.fromJson(todo.toString());
+                        long result = databaseHelper.addOrUpdateTodo(todoItem);
+                        callbackContext.success();
+                    } catch (Exception e) {
+                        callbackContext.error(e.getMessage());
                     }
-
                 }
             });
+            return true;
         }
         if(action.equals("delete"))
         {
@@ -81,91 +100,17 @@ public class TodoManagement extends CordovaPlugin {
             this.cordova.getThreadPool().execute(new Runnable(){
                 public void run() {
                     try {
-                        Integer id = todo.getInt("id");
-                        deleteTodo(id);
-                        callbackContext.success(true);
+                        long id = todo.getLong("id");
+                        databaseHelper.deleteTodo(id);
+                        callbackContext.success();
                     } catch (JSONException e) {
-                        callbackContext.error("Error at delete");
-                        e.printStackTrace();
+                        callbackContext.error(e.getMessage());
                     }
 
                 }
             });
+            return true;
         }
         return false;
-    }
-
-    private void coolMethod(String message, CallbackContext callbackContext) {
-        if (message != null && message.length() > 0) {
-            callbackContext.success(message);
-        } else {
-            callbackContext.error("Expected one non-empty string argument.");
-        }
-    }
-
-    public JSONArray getTodoList()
-    {
-
-        String searchQuery = "select * from Todos";
-        Cursor cursor = TodoDb.rawQuery(searchQuery, null);
-
-        JSONArray resultSet = new JSONArray();
-        JSONObject returnObj = new JSONObject();
-
-        cursor.moveToFirst();
-        while (cursor.isAfterLast() == false) {
-
-            int totalColumn = cursor.getColumnCount();
-            JSONObject rowObject = new JSONObject();
-
-            for (int i = 0; i < totalColumn; i++) {
-                if (cursor.getColumnName(i) != null) {
-
-                    try {
-
-                        if (cursor.getString(i) != null) {
-                            Log.d("TAG_NAME", cursor.getString(i));
-                            rowObject.put(cursor.getColumnName(i), cursor.getString(i));
-                        } else {
-                            rowObject.put(cursor.getColumnName(i), "");
-                        }
-                    } catch (Exception e) {
-                        Log.d("TAG_NAME", e.getMessage());
-                    }
-                }
-
-            }
-
-            resultSet.put(rowObject);
-            cursor.moveToNext();
-        }
-
-        cursor.close();
-        Log.d("TAG_NAME", resultSet.toString());
-        return resultSet;
-    }
-
-    public boolean insertTodo (Integer id, String label, Integer checked) {
-        ContentValues contentValues = new ContentValues();
-        contentValues.put("id", id);
-        contentValues.put("label", label);
-        contentValues.put("checked", checked);
-        TodoDb.insert("Todos", null, contentValues);
-        return true;
-    }
-
-    public boolean updateTodo (Integer id, String label, Integer checked) {
-        ContentValues contentValues = new ContentValues();
-        contentValues.put("id", id);
-        contentValues.put("label", label);
-        contentValues.put("checked", checked);
-        TodoDb.update("Todos", contentValues, "id = ? ", new String[] { Integer.toString(id) } );
-        return true;
-    }
-
-    public Integer deleteTodo (Integer id) {
-        return TodoDb.delete("Todos",
-                "id = ? ",
-                new String[] { Integer.toString(id) });
     }
 }

@@ -12,23 +12,46 @@ import org.apache.cordova.todo.models.Todo;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+* DatabaseHelper is the main entity we'll be using to work with our database
+*
+* @author Shahar Shalev
+* 
+*/
 public class DatabaseHelper extends SQLiteOpenHelper {
 
+    /**
+     * The instance of class , we use singleton pattern here
+     */
     private static DatabaseHelper sInstance;
 
+    /**
+     * The name of our class file, for logging
+     */
     private final String TAG_DATABASEHELPER = "DatabaseHelper";
     // Database Info
+    /** Database name */
     private static final String DATABASE_NAME = "todosDatabase";
+    /** Database version */
     private static final int DATABASE_VERSION = 1;
 
     // Table Names
+    /** Single table - todos which we will save everyting in it. */
     private static final String TABLE_TODOS = "todos";
 
     // Todos Table Columns
+    /** The id of the todo */
     private static final String KEY_TODO_ID = "id";
+    /** The text of the todo */
     private static final String KEY_TODO_LABEL = "label";
+    /** Is checked or not */
     private static final String KEY_TODO_CHECKED = "checked";
-
+    /**
+     * 
+     * Create or get the DatabaseHelper instance 
+     * @param context  application context
+     * @return DatabaseHelper instance
+     */
     public static synchronized DatabaseHelper getInstance(Context context) {
         // Use the application context, which will ensure that you
         // don't accidentally leak an Activity's context.
@@ -43,16 +66,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
-    // Called when the database connection is being configured.
-    // Configure database settings for things like foreign key support, write-ahead logging, etc.
+    /** 
+     * Called when the database connection is being configured.
+     * Configure database settings for things like foreign key support, write-ahead logging, etc.
+     */ 
     @Override
     public void onConfigure(SQLiteDatabase db) {
         super.onConfigure(db);
         db.setForeignKeyConstraintsEnabled(true);
     }
 
-    // Called when the database is created for the FIRST time.
-    // If a database already exists on disk with the same DATABASE_NAME, this method will NOT be called.
+    /**
+     * Called when the database is created for the FIRST time.
+     * If a database already exists on disk with the same DATABASE_NAME, this method will NOT be called.
+     * @param db
+     */
     @Override
     public void onCreate(SQLiteDatabase db) {
         String CREATE_TODO_TABLE = "CREATE TABLE " + TABLE_TODOS +
@@ -65,9 +93,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_TODO_TABLE);
     }
 
-    // Called when the database needs to be upgraded.
-    // This method will only be called if a database already exists on disk with the same DATABASE_NAME,
-    // but the DATABASE_VERSION is different than the version of the database that exists on disk.
+    /**
+     * Called when the database needs to be upgraded.
+     * This method will only be called if a database already exists on disk with the same DATABASE_NAME,
+     * but the DATABASE_VERSION is different than the version of the database that exists on disk.
+     * @param db
+     * @param oldVersion
+     * @param newVersion
+     */
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion != newVersion) {
@@ -76,7 +109,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             onCreate(db);
         }
     }
-
+    /**
+     * 
+     * @param todo The todo which we be added/updated to our db.
+     * @return id of the the todo
+     */
     public long addOrUpdateTodo(Todo todo)
     {
         SQLiteDatabase db = getWritableDatabase();
@@ -84,18 +121,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         db.beginTransaction();
         try {
+            // Saving key, value infomation for the todo create/update query
             ContentValues values = new ContentValues();
             values.put(KEY_TODO_ID, todo.id);
             values.put(KEY_TODO_LABEL, todo.label);
             values.put(KEY_TODO_CHECKED, todo.checked);
 
-            // First try to update the user in case the user already exists in the database
-            // This assumes userNames are unique
+            // First try to update the todo in case the todo already exists in the database
+            // This assumes todo's id are unique
             int rows = db.update(TABLE_TODOS, values, KEY_TODO_ID + "= ?", new String[]{todo.id.toString()});
 
             // Check if update succeeded
             if (rows == 1) {
-                // Get the primary key of the user we just updated
+                // Get the primary key of the todo we just updated
                 String todosSelectQuery = String.format("SELECT %s FROM %s WHERE %s = ?",
                         KEY_TODO_ID, TABLE_TODOS, KEY_TODO_ID);
                 Cursor cursor = db.rawQuery(todosSelectQuery, new String[]{String.valueOf(todo.id)});
@@ -110,7 +148,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     }
                 }
             } else {
-                // user with this userName did not already exist, so insert new user
+                // todo with this that id did not already exist, so insert new todo
                 todoId = db.insertOrThrow(TABLE_TODOS, null, values);
                 db.setTransactionSuccessful();
             }
@@ -122,9 +160,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return todoId;
     }
 
+    /**
+     *  Get a single Todo object by his id.
+     * @param id the id of the todo
+     * @return the todo by his id.
+     */
     public Todo getById(long id)
     {
         Todo newTodo = null;
+        // The query to get the todo from db.
         String TODO_SELECT_QUERY =
                 String.format("SELECT * FROM %s where %s = ?",
                         TABLE_TODOS,
@@ -133,7 +177,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.rawQuery(TODO_SELECT_QUERY, new String[] {String.valueOf(id)});
-
+        
+        // Extracting the the todo from the result of the query.
         try {
             if (cursor.moveToFirst()) {
                 newTodo = new Todo();
@@ -151,12 +196,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return newTodo;
     }
 
+    /**
+     * 
+     * @return All the todos from our db
+     */
     public List<Todo> getAllTodos() {
         List<Todo> todos = new ArrayList<>();
 
-        // SELECT * FROM POSTS
-        // LEFT OUTER JOIN USERS
-        // ON POSTS.KEY_POST_USER_ID_FK = USERS.KEY_USER_ID
         String TODOS_SELECT_QUERY =
                 String.format("SELECT * FROM %s",
                         TABLE_TODOS);
@@ -165,6 +211,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         // disk space scenarios)
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.rawQuery(TODOS_SELECT_QUERY, null);
+
+        // Going over the results and add them to the list of todos
         try {
             if (cursor.moveToFirst()) {
                 do {
@@ -186,6 +234,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return todos;
     }
 
+    /**
+     * Delete a todo from our db by his id
+     * @param id of the todo
+     */
     public void deleteTodo(long id) {
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();

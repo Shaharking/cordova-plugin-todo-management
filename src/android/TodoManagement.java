@@ -22,8 +22,11 @@ import org.json.JSONObject;
 import java.util.List;
 
 /**
- * This class echoes a string called from JavaScript.
- */
+* TodoManagement is the main entity we'll be using to interface the commands outside and inside of our app
+*
+* @author Shahar Shalev
+* 
+*/
 public class TodoManagement extends CordovaPlugin {
 
     private DatabaseHelper databaseHelper = null;
@@ -35,13 +38,21 @@ public class TodoManagement extends CordovaPlugin {
 
     }
 
+    /**
+     * 
+     * @param action string repsenting the action to take
+     * @param args the arguments we got
+     * @param callbackContext calllback to sent the result back to web app
+     * @return
+     * @throws JSONException
+     */
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
         if (databaseHelper == null) {
             databaseHelper = DatabaseHelper.getInstance(this.cordova.getContext());
         }
-
+        /** In case of a get - return all the todos */
         if (action.equals("get")) {
             this.cordova.getThreadPool().execute(new Runnable() {
                 @Override
@@ -59,6 +70,7 @@ public class TodoManagement extends CordovaPlugin {
             });
             return true;
         }
+        /** In case of getBy id - get a single todo by his id */
         if (action.equals("getById"))
         {
             JSONObject todo = args.getJSONObject(0);
@@ -78,6 +90,7 @@ public class TodoManagement extends CordovaPlugin {
             });
             return true;
         }
+        /** In case of post/put create/update the db with our todo */
         if (action.equals("post") || action.equals("put"))
         {
             JSONObject todo = args.getJSONObject(0);
@@ -94,6 +107,7 @@ public class TodoManagement extends CordovaPlugin {
             });
             return true;
         }
+        /** In case of delete remove the todo from our db */
         if(action.equals("delete"))
         {
             JSONObject todo = args.getJSONObject(0);
